@@ -43,3 +43,12 @@ next-env.d.ts
 # firebase
 firebase-debug.log
 firestore-debug.log
+
+# local uploads
+public/uploads/*
+!public/uploads/.gitkeep
+
+# legacy subfolders
+Cloud-flare-r2-uploader/
+Giit-upload/
+SayWithQRv2/

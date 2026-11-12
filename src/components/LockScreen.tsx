@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { SayWithLogo } from './SayWithLogo';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { KeyRound } from 'lucide-react';
+import { KeyRound, Loader2 } from 'lucide-react';
 
 interface LockScreenProps {
   onUnlock: () => void;
@@ -15,8 +15,8 @@ interface LockScreenProps {
 
 export function LockScreen({ onUnlock }: LockScreenProps) {
   const [pin, setPin] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const correctPin = process.env.NEXT_PUBLIC_PIN_CODE;
 
   const handlePinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -25,18 +25,45 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (pin === correctPin) {
-      toast({ title: 'Success', description: 'Access granted.' });
-      onUnlock();
-    } else {
+    if (pin.length < 4) {
       toast({
         variant: 'destructive',
-        title: 'Incorrect PIN',
-        description: 'Please try again.',
+        title: 'Incomplete PIN',
+        description: 'Please enter a 4-digit PIN.',
       });
-      setPin('');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/auth/verify-pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast({ variant: 'success', title: 'Access Granted', description: 'Welcome to SayWith Suite.' });
+        onUnlock();
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Incorrect PIN',
+          description: data.error || 'Please check your PIN and try again.',
+        });
+        setPin('');
+      }
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Verification failed. Please try again.',
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -61,8 +88,9 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
                           className="pl-10 text-center text-2xl tracking-[0.5em]"
                       />
                   </div>
-                  <Button type="submit" className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
-                      Unlock
+                  <Button type="submit" disabled={isLoading || pin.length < 4} className="w-full bg-accent text-accent-foreground hover:bg-accent/90 gap-2">
+                      {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      {isLoading ? 'Verifying...' : 'Unlock'}
                   </Button>
               </form>
           </CardContent>

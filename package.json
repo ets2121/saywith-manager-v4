@@ -1,17 +1,20 @@
 {
-  "name": "nextn",
-  "version": "0.1.0",
+  "name": "saywith-manager",
+  "version": "1.0.0",
   "private": true,
+  "main": "electron/main.js",
   "scripts": {
     "dev": "next dev --turbopack",
-    "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
-    "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "electron": "electron .",
+    "electron:dev": "electron ."
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1167.0",
+    "@aws-sdk/s3-request-presigner": "^3.1167.0",
     "@genkit-ai/googleai": "^1.14.1",
     "@genkit-ai/next": "^1.14.1",
     "@hookform/resolvers": "^4.1.3",
@@ -36,16 +39,21 @@
     "@radix-ui/react-tabs": "^1.1.3",
     "@radix-ui/react-toast": "^1.2.6",
     "@radix-ui/react-tooltip": "^1.1.8",
+    "axios": "^1.21.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
     "dotenv": "^16.5.0",
     "embla-carousel-react": "^8.6.0",
+    "file-saver": "^2.0.5",
     "firebase": "^11.9.1",
     "genkit": "^1.14.1",
+    "jszip": "^3.10.2",
     "lucide-react": "^0.475.0",
+    "mime-types": "^3.0.2",
     "next": "15.3.3",
     "patch-package": "^8.0.0",
+    "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
@@ -56,12 +64,17 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@types/file-saver": "^2.0.7",
+    "@types/mime-types": "^3.0.1",
     "@types/node": "^20",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "electron": "^45.3.1",
     "genkit-cli": "^1.14.1",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wait-on": "^9.5.1"
   }
 }
