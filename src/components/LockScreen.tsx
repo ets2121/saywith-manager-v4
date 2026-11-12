@@ -18,30 +18,14 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const handlePinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (/^\d*$/.test(value) && value.length <= 4) {
-      setPin(value);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (pin.length < 4) {
-      toast({
-        variant: 'destructive',
-        title: 'Incomplete PIN',
-        description: 'Please enter a 4-digit PIN.',
-      });
-      return;
-    }
-
+  const verifyPin = async (inputPin: string) => {
+    if (isLoading) return;
     setIsLoading(true);
     try {
       const res = await fetch('/api/auth/verify-pin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin }),
+        body: JSON.stringify({ pin: inputPin }),
       });
 
       const data = await res.json();
@@ -56,15 +40,39 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
         });
         setPin('');
       }
-    } catch (err: any) {
+    } catch {
       toast({
         variant: 'destructive',
         title: 'Error',
         description: 'Verification failed. Please try again.',
       });
+      setPin('');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handlePinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (/^\d*$/.test(value) && value.length <= 4) {
+      setPin(value);
+      if (value.length === 4) {
+        verifyPin(value);
+      }
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pin.length < 4) {
+      toast({
+        variant: 'destructive',
+        title: 'Incomplete PIN',
+        description: 'Please enter a 4-digit PIN.',
+      });
+      return;
+    }
+    verifyPin(pin);
   };
 
   return (

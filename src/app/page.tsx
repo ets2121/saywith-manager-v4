@@ -8,10 +8,12 @@ import QrArtStudio from "@/components/QrArtStudio";
 import { ConnectionTestDialog } from "@/components/ConnectionTestDialog";
 import { SayWithLogo } from "@/components/SayWithLogo";
 import { LockScreen } from "@/components/LockScreen";
-import { FilePlus2, Edit, QrCode, Settings, Server, Database, Cloud, HardDrive } from "lucide-react";
+import { AutoUpdateBanner } from "@/components/AutoUpdateBanner";
+import { FilePlus2, Edit, QrCode, Settings, Server, Database, Cloud, HardDrive, Sparkles } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -24,7 +26,7 @@ export type StorageProvider = "firebase" | "github" | "r2" | "local";
 
 export default function Home() {
   const [isUnlocked, setIsUnlocked] = useState(false);
-  const [storageProvider, setStorageProvider] = useState<StorageProvider>("firebase");
+  const [storageProvider, setStorageProvider] = useState<StorageProvider>("r2");
   const [activeTab, setActiveTab] = useState("create");
   const [selectedQrId, setSelectedQrId] = useState("");
   const [selectedQrUrl, setSelectedQrUrl] = useState("");
@@ -46,6 +48,9 @@ export default function Home() {
     const savedProvider = localStorage.getItem("storageProvider") as StorageProvider;
     if (savedProvider && ["firebase", "github", "r2", "local"].includes(savedProvider)) {
       setStorageProvider(savedProvider);
+    } else {
+      setStorageProvider("r2");
+      localStorage.setItem("storageProvider", "r2");
     }
   }, []);
 
@@ -86,6 +91,7 @@ export default function Home() {
 
   return (
     <div className="flex min-h-screen w-full flex-col items-center bg-background text-foreground">
+      <AutoUpdateBanner />
       <main className="flex flex-1 w-full max-w-5xl flex-col items-center justify-start p-4 md:p-8">
         <header className="w-full mb-8 text-center relative flex flex-col items-center">
           <div className="w-full flex items-center justify-between mb-4">
@@ -125,6 +131,19 @@ export default function Home() {
                       <span>Local Disk Storage</span>
                     </DropdownMenuRadioItem>
                   </DropdownMenuRadioGroup>
+
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (typeof window !== "undefined" && window.electronAPI?.checkForUpdates) {
+                        window.electronAPI.checkForUpdates();
+                      }
+                    }}
+                    className="gap-2 cursor-pointer"
+                  >
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    <span>Check for Updates</span>
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

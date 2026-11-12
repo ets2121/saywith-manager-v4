@@ -1,13 +1,18 @@
-const { app, BrowserWindow, shell } = require("electron");
+const { app, BrowserWindow, shell, ipcMain } = require("electron");
 const path = require("path");
 const http = require("http");
 const { spawn } = require("child_process");
+const { autoUpdater } = require("electron-updater");
 
 let mainWindow = null;
 let serverProcess = null;
 
 const PORT = process.env.PORT || 3000;
 const SERVER_URL = `http://localhost:${PORT}`;
+
+// Configure autoUpdater
+autoUpdater.autoDownload = true;
+autoUpdater.autoInstallOnAppQuit = true;
 
 function isServerRunning(url) {
   return new Promise((resolve) => {
@@ -47,6 +52,73 @@ function startNextServer() {
   });
 }
 
+function setupAutoUpdater() {
+  autoUpdater.on("checking-for-update", () => {
+    console.log("Checking for updates...");
+  });
+
+  autoUpdater.on("update-available", (info) => {
+    console.log("Update available:", info);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("update-available", info);
+    }
+  });
+
+  autoUpdater.on("update-not-available", (info) => {
+    console.log("Update not available:", info);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("update-not-available", info);
+    }
+  });
+
+  autoUpdater.on("download-progress", (progressObj) => {
+    console.log(`Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}%`);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("update-progress", progressObj);
+    }
+  });
+
+  autoUpdater.on("update-downloaded", (info) => {
+    console.log("Update downloaded:", info);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("update-downloaded", info);
+    }
+  });
+
+  autoUpdater.on("error", (err) => {
+    console.error("Auto updater error:", err);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("update-error", err ? err.message : "Update check failed");
+    }
+  });
+
+  // Check for updates shortly after launch (in production)
+  setTimeout(() => {
+    if (app.isPackaged) {
+      autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+        console.warn("Auto update check failed:", err.message);
+      });
+    }
+  }, 5000);
+}
+
+// IPC Handlers for Auto-Update
+ipcMain.handle("check-for-updates", async () => {
+  if (!app.isPackaged) {
+    return { status: "dev", message: "Auto-updater is active in packaged app." };
+  }
+  try {
+    const result = await autoUpdater.checkForUpdates();
+    return { status: "ok", updateInfo: result ? result.updateInfo : null };
+  } catch (err) {
+    return { status: "error", error: err.message };
+  }
+});
+
+ipcMain.handle("restart-and-install", () => {
+  autoUpdater.quitAndInstall();
+});
+
 async function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1320,
@@ -84,6 +156,8 @@ async function createWindow() {
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
+
+  setupAutoUpdater();
 }
 
 app.whenReady().then(createWindow);

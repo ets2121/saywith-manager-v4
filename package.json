@@ -10,7 +10,9 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "electron": "electron .",
-    "electron:dev": "electron ."
+    "electron:dev": "electron .",
+    "electron:build": "npm run build && electron-builder --win",
+    "electron:pack": "npm run build && electron-builder --dir"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1167.0",
@@ -44,6 +46,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
     "dotenv": "^16.5.0",
+    "electron-updater": "^6.8.11",
     "embla-carousel-react": "^8.6.0",
     "file-saver": "^2.0.5",
     "firebase": "^11.9.1",
@@ -71,10 +74,50 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "electron": "^45.3.1",
+    "electron-builder": "^26.18.0",
     "genkit-cli": "^1.14.1",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "typescript": "^5",
     "wait-on": "^9.5.1"
+  },
+  "build": {
+    "appId": "com.saywith.manager",
+    "productName": "SayWith Studio",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "electron/**/*",
+      "public/**/*",
+      ".next/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "ets2121",
+        "repo": "saywith-manager-v4"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "public/icons/icon-512x512.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "SayWith Studio"
+    }
   }
 }
