@@ -15,6 +15,7 @@ import { saveAs } from 'file-saver';
 import JSZip from 'jszip';
 import { QrCode, Palette, Download, Trash2, Plus, Settings, Loader2, Image as ImageIcon, Upload, Clipboard, Search } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { LoadingOverlay } from './LoadingOverlay';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Slider } from '@/components/ui/slider';
@@ -1133,6 +1134,7 @@ export default function QrArtStudio({ qrId, id }: { qrId?: string; id?: string }
   );
 
   return (
+    <>
     <div className="space-y-6 w-full">
       <Tabs defaultValue="content" className="w-full">
         <TabsList className="grid w-full grid-cols-2 bg-muted/50">
@@ -1293,6 +1295,23 @@ export default function QrArtStudio({ qrId, id }: { qrId?: string; id?: string }
         </section>
       )}
     </div>
+
+      {/* Popup loading overlay for QR generation */}
+      <LoadingOverlay
+        open={isLoading}
+        title="Generating QR Artwork…"
+        description="Rendering high-quality QR codes with your custom design. This may take a moment."
+        progress={null}
+      />
+
+      {/* Popup loading overlay for download */}
+      <LoadingOverlay
+        open={isDownloading}
+        title="Preparing Download…"
+        description="Generating high-resolution PNG files and packaging them into a ZIP archive."
+        progress={null}
+      />
+    </>
   );
 }
 

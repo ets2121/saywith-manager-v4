@@ -16,6 +16,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Search, QrCode, Trash2, Edit3, RefreshCw, HardDrive, Database, Cloud, Server, ChevronDown, ChevronUp, Copy } from "lucide-react";
+import { LoadingOverlay } from "./LoadingOverlay";
 import { FileUploader } from "./FileUploader";
 import { MediaLivePreview } from "./MediaLivePreview";
 import { Progress } from "@/components/ui/progress";
@@ -680,15 +681,7 @@ export function EditForm({ onOpenQr }: { onOpenQr?: (id: string) => void }) {
                   )}
                 </div>
 
-                {isUpdating && (
-                  <div className="p-4 rounded-lg border border-primary/30 bg-primary/10 space-y-2">
-                    <div className="flex items-center justify-between text-xs font-semibold">
-                      <span>{uploadStatus}</span>
-                      <span>{uploadProgress !== null ? `${uploadProgress}%` : "Processing..."}</span>
-                    </div>
-                    <Progress value={uploadProgress || 10} className="h-2 bg-muted" />
-                  </div>
-                )}
+                {/* Inline progress removed — popup overlay used instead */}
 
                 <Button
                   type="submit"
@@ -722,6 +715,14 @@ export function EditForm({ onOpenQr }: { onOpenQr?: (id: string) => void }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Popup loading overlay */}
+      <LoadingOverlay
+        open={isUpdating}
+        title={uploadProgress !== null && uploadProgress < 100 ? "Uploading File…" : "Saving Changes…"}
+        description={uploadStatus}
+        progress={uploadProgress}
+      />
     </div>
   );
 }
