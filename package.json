@@ -1,6 +1,6 @@
 {
   "name": "saywith-manager",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "main": "electron/main.js",
   "scripts": {
@@ -87,12 +87,14 @@
     "directories": {
       "output": "dist-electron"
     },
+    "asar": false,
     "files": [
       "electron/**/*",
       "public/**/*",
       ".next/**/*",
       "node_modules/**/*",
-      "package.json"
+      "package.json",
+      ".env"
     ],
     "publish": [
       {

@@ -1,7 +1,6 @@
 const { app, BrowserWindow, shell, ipcMain } = require("electron");
 const path = require("path");
 const http = require("http");
-const { spawn } = require("child_process");
 const { autoUpdater } = require("electron-updater");
 
 // Use overlay scrollbars (thin, modern) in Electron's Chromium
@@ -9,7 +8,7 @@ app.commandLine.appendSwitch("enable-features", "OverlayScrollbar");
 app.commandLine.appendSwitch("enable-blink-features", "OverlayScrollbars");
 
 let mainWindow = null;
-let serverProcess = null;
+let httpServer = null;
 
 const PORT = process.env.PORT || 3000;
 const SERVER_URL = `http://localhost:${PORT}`;
@@ -20,40 +19,70 @@ autoUpdater.autoInstallOnAppQuit = true;
 
 function isServerRunning(url) {
   return new Promise((resolve) => {
-    http
+    const req = http
       .get(url, (res) => {
         resolve(res.statusCode >= 200 && res.statusCode < 500);
       })
       .on("error", () => {
         resolve(false);
       });
+    req.setTimeout(1200, () => {
+      req.destroy();
+      resolve(false);
+    });
   });
 }
 
-async function waitForServer(url, timeoutMs = 30000) {
-  const startTime = Date.now();
-  while (Date.now() - startTime < timeoutMs) {
-    const running = await isServerRunning(url);
-    if (running) return true;
-    await new Promise((r) => setTimeout(r, 600));
+async function startServer() {
+  const running = await isServerRunning(SERVER_URL);
+  if (running) {
+    console.log(`Using existing server at ${SERVER_URL}`);
+    return;
   }
-  return false;
-}
 
-function startNextServer() {
-  const isDev = process.env.NODE_ENV !== "production";
-  const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
-  const script = isDev ? "dev" : "start";
+  const rootDir = app.isPackaged
+    ? path.join(process.resourcesPath, "app")
+    : path.join(__dirname, "..");
 
-  serverProcess = spawn(npmCmd, ["run", script], {
-    cwd: path.join(__dirname, ".."),
-    stdio: "inherit",
-    shell: true,
-  });
+  console.log(`Starting embedded Next.js server from: ${rootDir}`);
 
-  serverProcess.on("error", (err) => {
-    console.error("Failed to start local Next.js server:", err);
-  });
+  // Load .env if present
+  try {
+    const dotenv = require("dotenv");
+    dotenv.config({ path: path.join(rootDir, ".env") });
+  } catch {}
+
+  try {
+    const next = require("next");
+    const nextApp = next({ dev: false, dir: rootDir });
+    const handle = nextApp.getRequestHandler();
+    await nextApp.prepare();
+
+    httpServer = http.createServer((req, res) => handle(req, res));
+    await new Promise((resolve, reject) => {
+      httpServer.listen(PORT, "localhost", (err) => {
+        if (err) return reject(err);
+        console.log(`SayWith server ready on ${SERVER_URL}`);
+        resolve();
+      });
+    });
+  } catch (err) {
+    console.error("Embedded Next.js server error:", err);
+    // Development fallback
+    if (!app.isPackaged) {
+      const { spawn } = require("child_process");
+      const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
+      spawn(npmCmd, ["run", "dev"], {
+        cwd: rootDir,
+        stdio: "inherit",
+        shell: true,
+      });
+      for (let i = 0; i < 20; i++) {
+        if (await isServerRunning(SERVER_URL)) break;
+        await new Promise((r) => setTimeout(r, 600));
+      }
+    }
+  }
 }
 
 function setupAutoUpdater() {
@@ -103,7 +132,7 @@ function setupAutoUpdater() {
         console.warn("Auto update check failed:", err.message);
       });
     }
-  }, 5000);
+  }, 4000);
 }
 
 // IPC Handlers for Auto-Update
@@ -131,6 +160,7 @@ async function createWindow() {
     minHeight: 680,
     backgroundColor: "#121212",
     title: "SayWith Studio",
+    show: false, // Smooth launch: reveal window once content is ready
     icon: path.join(__dirname, "..", "public", "icons", "icon-512x512.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -148,18 +178,20 @@ async function createWindow() {
     return { action: "deny" };
   });
 
-  // Ensure server is up
-  const serverAlreadyRunning = await isServerRunning(SERVER_URL);
-  if (!serverAlreadyRunning) {
-    startNextServer();
-    await waitForServer(SERVER_URL);
-  }
-
-  mainWindow.loadURL(SERVER_URL);
-
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
+
+  // Start internal server if needed
+  try {
+    await startServer();
+  } catch (err) {
+    console.error("Server init error:", err);
+  }
+
+  // Load the app URL
+  await mainWindow.loadURL(SERVER_URL);
+  mainWindow.show();
 
   setupAutoUpdater();
 }
@@ -167,9 +199,9 @@ async function createWindow() {
 app.whenReady().then(createWindow);
 
 app.on("window-all-closed", () => {
-  if (serverProcess) {
+  if (httpServer) {
     try {
-      serverProcess.kill();
+      httpServer.close();
     } catch {}
   }
   if (process.platform !== "darwin") {

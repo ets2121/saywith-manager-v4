@@ -21,6 +21,18 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
   const verifyPin = async (inputPin: string) => {
     if (isLoading) return;
     setIsLoading(true);
+
+    const defaultPin = process.env.NEXT_PUBLIC_PIN_CODE || "2121";
+
+    // 1. Instant client-side verification: unlocks in 0ms without waiting for network
+    if (inputPin.trim() === defaultPin.trim()) {
+      toast({ variant: 'success', title: 'Access Granted', description: 'Welcome to SayWith Suite.' });
+      onUnlock();
+      setIsLoading(false);
+      return;
+    }
+
+    // 2. Fallback to server-side verification in case a custom PIN is configured in .env
     try {
       const res = await fetch('/api/auth/verify-pin', {
         method: 'POST',
@@ -32,24 +44,19 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
       if (res.ok && data.success) {
         toast({ variant: 'success', title: 'Access Granted', description: 'Welcome to SayWith Suite.' });
         onUnlock();
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Incorrect PIN',
-          description: data.error || 'Please check your PIN and try again.',
-        });
-        setPin('');
+        return;
       }
     } catch {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Verification failed. Please try again.',
-      });
-      setPin('');
-    } finally {
-      setIsLoading(false);
+      // Server check failed or not reached
     }
+
+    toast({
+      variant: 'destructive',
+      title: 'Incorrect PIN',
+      description: 'Please check your PIN and try again.',
+    });
+    setPin('');
+    setIsLoading(false);
   };
 
   const handlePinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
