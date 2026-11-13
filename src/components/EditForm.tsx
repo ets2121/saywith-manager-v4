@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import templates from '@/lib/templates.json';
 import type { StorageProvider } from "@/app/page";
 import { SrtAdjuster } from "./SrtAdjuster";
+import { deleteStorageFile, deleteStorageEntry } from "@/lib/storageCleanup";
 
 const formSchema = z.object({
   name: z.string().optional(),
@@ -211,9 +212,27 @@ export function EditForm({ onOpenQr }: { onOpenQr?: (id: string) => void }) {
 
   const handleDeleteItem = async () => {
     if (!itemToDelete) return;
+    setIsUpdating(true);
+    setUploadStatus(`Deleting entry '${itemToDelete}' and purging storage files...`);
     try {
+      // 1. Fetch item to identify storage provider and paths
+      const snapshot = await get(dbRef(db, `Saywith/${itemToDelete}`));
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const provider = (data.storageProvider || "r2") as any;
+        await deleteStorageEntry({
+          provider,
+          folder: itemToDelete,
+          mediaUrl: data.mediaUrl,
+          audioUrl: data.audioUrl,
+          R2mediaPath: data.R2mediaPath,
+          R2audioPath: data.R2audioPath,
+        });
+      }
+
+      // 2. Remove record from database
       await remove(dbRef(db, `Saywith/${itemToDelete}`));
-      toast({ variant: "success", title: "Deleted", description: `Entry '${itemToDelete}' removed.` });
+      toast({ variant: "success", title: "Deleted & Storage Freed", description: `Entry '${itemToDelete}' and its storage files were removed.` });
       if (id === itemToDelete) {
         setLoadedData(null);
         setId("");
@@ -222,6 +241,7 @@ export function EditForm({ onOpenQr }: { onOpenQr?: (id: string) => void }) {
     } catch (err: any) {
       toast({ variant: "destructive", title: "Delete Failed", description: err.message });
     } finally {
+      setIsUpdating(false);
       setItemToDelete(null);
     }
   };
@@ -330,8 +350,27 @@ export function EditForm({ onOpenQr }: { onOpenQr?: (id: string) => void }) {
         updates.updatedAt = new Date().toISOString();
         setUploadStatus("Updating database record...");
         await update(dbRef(db, `Saywith/${id}`), updates);
+
+        // Clean up old media file from storage if a replacement was uploaded
+        if (mediaFile && loadedData.mediaUrl) {
+          deleteStorageFile({
+            provider: currentStorageProvider,
+            filePath: loadedData.R2mediaPath,
+            fileUrl: loadedData.mediaUrl,
+          }).catch((e) => console.warn("Failed to delete old media:", e));
+        }
+
+        // Clean up old audio file from storage if a replacement was uploaded
+        if (audioFile && loadedData.audioUrl && !loadedData.audioUrl.includes("default-audio.mp3")) {
+          deleteStorageFile({
+            provider: currentStorageProvider,
+            filePath: loadedData.R2audioPath,
+            fileUrl: loadedData.audioUrl,
+          }).catch((e) => console.warn("Failed to delete old audio:", e));
+        }
+
         setLoadedData(prev => prev ? { ...prev, ...updates } : null);
-        toast({ variant: "success", title: "Updated!", description: "Content has been successfully updated." });
+        toast({ variant: "success", title: "Updated!", description: "Content has been successfully updated and old storage files replaced." });
         setMediaFile(null);
         setAudioFile(null);
         setSrtFile(null);

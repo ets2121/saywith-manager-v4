@@ -43,3 +43,38 @@ export async function POST(req: NextRequest) {
   }
 }
 
+export async function DELETE(req: NextRequest) {
+  try {
+    const body = await req.json().catch(() => ({}));
+    const { path: filePath, folder } = body;
+
+    if (!filePath && !folder) {
+      return NextResponse.json({ error: "Either 'path' or 'folder' is required to delete." }, { status: 400 });
+    }
+
+    const baseUploadsDir = path.join(process.cwd(), "public", "uploads");
+
+    // 1. If folder is specified, remove the entire folder
+    if (folder) {
+      const sanitizedFolder = path.basename(folder);
+      const folderPath = path.join(baseUploadsDir, sanitizedFolder);
+      await fs.rm(folderPath, { recursive: true, force: true });
+    }
+
+    // 2. If single file path is specified (e.g. /uploads/folder/media.mp4 or folder/media.mp4)
+    if (filePath) {
+      const cleanPath = filePath.replace(/^\/?uploads\//, "").replace(/^\//, "");
+      const fullPath = path.join(baseUploadsDir, cleanPath);
+      await fs.rm(fullPath, { force: true });
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Deleted local storage file(s)",
+    });
+  } catch (error: any) {
+    console.error("Local storage delete error:", error);
+    return NextResponse.json({ error: "Local delete failed", details: error.message }, { status: 500 });
+  }
+}
+

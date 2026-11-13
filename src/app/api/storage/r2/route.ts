@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import mime from "mime-types";
 
@@ -102,6 +102,69 @@ export async function POST(req: NextRequest) {
     console.error("R2 Upload error:", error);
     return NextResponse.json({
       error: "Upload failed",
+      details: error.message || "Unknown error",
+    }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const bucketName = process.env.R2_BUCKET_NAME;
+    if (!bucketName) {
+      return NextResponse.json({ error: "R2_BUCKET_NAME is not configured" }, { status: 500 });
+    }
+
+    const s3Client = getS3Client();
+    const body = await req.json().catch(() => ({}));
+    const { path: filePath, folder } = body;
+
+    if (!filePath && !folder) {
+      return NextResponse.json({ error: "Either 'path' or 'folder' is required to delete." }, { status: 400 });
+    }
+
+    let deletedCount = 0;
+
+    // 1. If single file path is given, delete it directly
+    if (filePath) {
+      await s3Client.send(new DeleteObjectCommand({
+        Bucket: bucketName,
+        Key: filePath,
+      }));
+      deletedCount++;
+    }
+
+    // 2. If folder is given, list all items with prefix and batch delete them
+    if (folder) {
+      const prefix = folder.endsWith("/") ? folder : `${folder}/`;
+      const listRes = await s3Client.send(new ListObjectsV2Command({
+        Bucket: bucketName,
+        Prefix: prefix,
+      }));
+
+      if (listRes.Contents && listRes.Contents.length > 0) {
+        const objectsToDelete = listRes.Contents
+          .filter(item => item.Key)
+          .map(item => ({ Key: item.Key! }));
+
+        if (objectsToDelete.length > 0) {
+          await s3Client.send(new DeleteObjectsCommand({
+            Bucket: bucketName,
+            Delete: { Objects: objectsToDelete },
+          }));
+          deletedCount += objectsToDelete.length;
+        }
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `Deleted ${deletedCount} object(s) from Cloudflare R2`,
+      deletedCount,
+    });
+  } catch (error: any) {
+    console.error("R2 Delete error:", error);
+    return NextResponse.json({
+      error: "Delete failed",
       details: error.message || "Unknown error",
     }, { status: 500 });
   }
