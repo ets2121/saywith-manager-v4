@@ -4,6 +4,10 @@ const http = require("http");
 const { spawn } = require("child_process");
 const { autoUpdater } = require("electron-updater");
 
+// Use overlay scrollbars (thin, modern) in Electron's Chromium
+app.commandLine.appendSwitch("enable-features", "OverlayScrollbar");
+app.commandLine.appendSwitch("enable-blink-features", "OverlayScrollbars");
+
 let mainWindow = null;
 let serverProcess = null;
 
