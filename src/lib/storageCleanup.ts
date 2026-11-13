@@ -152,3 +152,4 @@ function extractPathFromUrl(url: string): string | null {
     return null;
   }
 }
+
